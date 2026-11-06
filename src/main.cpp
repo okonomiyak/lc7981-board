@@ -12,6 +12,7 @@ U8G2_LC7981_240X64_F_6800 u8g2(U8G2_R0,
 // ===== 仮想時計(Wi-Fi/NTPなし。3秒で1分進む) =====
 int virtualMinutes = 5 * 60 + 20; // 始発前から開始
 unsigned long lastTick = 0;
+unsigned long lastReinit = 0;
 const unsigned long tickIntervalMs = 3000; // 3秒 = 1分
 
 void getNextTwo(int nowMinutes, int& i1, int& i2, int& m1, int& m2) {
@@ -71,12 +72,25 @@ void setup() {
   lastTick = millis();
 }
 
+
 void loop() {
-  // 3秒ごとに仮想時計を1分進める
+  bool changed = false;
+
   if (millis() - lastTick >= tickIntervalMs) {
     lastTick += tickIntervalMs;
     virtualMinutes = (virtualMinutes + 1) % (24 * 60);
+    changed = true;
   }
+
+  // 10秒ごとにLCDを再初期化(消えても自動復帰)
+  if (millis() - lastReinit >= 10000) {
+    lastReinit = millis();
+    u8g2.initDisplay();
+    u8g2.setPowerSave(0);
+    changed = true;
+  }
+
+  if (!changed) { delay(10); return; }
 
   int i1, i2, m1, m2;
   getNextTwo(virtualMinutes, i1, i2, m1, m2);
@@ -86,6 +100,4 @@ void loop() {
   u8g2.drawHLine(0, 32, 240);
   if (i2 >= 0) drawRow(34, timetable[i2]);
   u8g2.sendBuffer();
-
-  delay(200);
 }
